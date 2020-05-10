@@ -1,0 +1,68 @@
+fact:
+  push %ebp
+  movl %esp, %ebp
+  sub $4, %esp
+  movl $0, -4(%ebp)
+  sub $4, %esp
+  movl 8(%ebp), %eax
+  movl %eax, -8(%ebp)
+  movl $0, %eax
+  movl -8(%ebp), %edx
+  cmp %eax, %edx
+  sete %al
+  movzbl %al, %eax
+  add $4, %esp
+  cmp $0, %eax
+  je IF_FALSE_0
+  sub $0, %esp
+  movl $1, %eax
+  movl %eax, -4(%ebp)
+  add $0, %esp
+  jmp IF_END_0
+IF_FALSE_0:
+  sub $4, %esp
+  movl $0, -8(%ebp)
+  sub $4, %esp
+  movl 8(%ebp), %eax
+  movl %eax, -12(%ebp)
+  movl $1, %eax
+  movl -12(%ebp), %edx
+  sub %eax, %edx
+  movl %edx, %eax
+  add $4, %esp
+  push %eax
+  call fact
+  add $4, %esp
+  movl %eax, -8(%ebp)
+  sub $4, %esp
+  movl 8(%ebp), %eax
+  movl %eax, -12(%ebp)
+  movl -8(%ebp), %eax
+  movl -12(%ebp), %edx
+  imul %edx, %eax
+  add $4, %esp
+  movl %eax, -4(%ebp)
+  add $4, %esp
+IF_END_0:
+  movl -4(%ebp), %eax
+  add $4, %esp
+  movl %ebp, %esp
+  pop %ebp
+  ret
+  .globl Entry
+  .type Entry, @function
+Entry:
+  push %ebp
+  movl %esp, %ebp
+  sub $4, %esp
+  movl $0, -4(%ebp)
+  movl $5, %eax
+  push %eax
+  call fact
+  add $4, %esp
+  movl %eax, -4(%ebp)
+  movl -4(%ebp), %eax
+  add $4, %esp
+  movl %ebp, %esp
+  pop %ebp
+  ret

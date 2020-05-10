@@ -1,0 +1,12 @@
+  .globl Entry
+  .type Entry, @function
+Entry:
+  push %ebp
+  movl %esp, %ebp
+  sub $4, %esp
+  movl $0, -4(%ebp)
+  movl -4(%ebp), %eax
+  add $4, %esp
+  movl %ebp, %esp
+  pop %ebp
+  ret
