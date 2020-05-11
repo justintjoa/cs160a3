@@ -115,34 +115,63 @@ void CodeGen::VisitMultiplyExpr(const MultiplyExpr& exp) {
 
 void CodeGen::VisitLessThanExpr(const LessThanExpr& exp) {
   cout << "Entering VisitLessThanExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  cmp %eax, %edx");
+  output.push_back("  setl %al");
+  output.push_back("  movzbl %al, %eax");
+  deallocate();
   cout << "Exiting VisitLessThanExpr" << endl;
 }
 
 void CodeGen::VisitLessThanEqualToExpr(const LessThanEqualToExpr& exp) {
   cout << "Entering VisitLessThanToEqualExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  cmp %eax, %edx");
+  output.push_back("  setle %al");
+  output.push_back("  movzbl %al, %eax");
+  deallocate();
   cout << "Exiting VisitLessThanEqualToExpr" << endl;
 }
 
+
 void CodeGen::VisitEqualToExpr(const EqualToExpr& exp) {
   cout << "Entering VisitEqualToEqualExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  cmp %eax, %edx");
+  output.push_back("  sete %al");
+  output.push_back("  movzbl %al, %eax");
+  deallocate();
   cout << "Exiting VisitEqualToExpr" << endl;
 }
 
 void CodeGen::VisitLogicalAndExpr(const LogicalAndExpr& exp) {
   cout << "Entering VisitLogicalAndExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  andl %edx, %eax");
+  deallocate();
+  output.push_back("  cmp $0, %eax");
   cout << "Exiting VisitLogicalAndExpr" << endl;
 }
 
 void CodeGen::VisitLogicalOrExpr(const LogicalOrExpr& exp) {
   cout << "Entering VisitLogicalOrExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
   exp.rhs().Visit(this);
   cout << "Exiting VisitLogicalOrExpr" << endl;
@@ -150,6 +179,7 @@ void CodeGen::VisitLogicalOrExpr(const LogicalOrExpr& exp) {
 
 void CodeGen::VisitLogicalNotExpr(const LogicalNotExpr& exp) {
   cout << "Entering VisitLogicalNotExpr" << endl;
+  allocate();
   exp.operand().Visit(this);
   cout << "Exiting VisitLogicalNotExpr" << endl;
 }
@@ -187,12 +217,12 @@ void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
 
 void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
-  assignment.lhs().Visit(this);
+  string identifier = assignment.lhs().toString();
   assignment.rhs().Visit(this);
   for (int i = 0; i < symbols.variables.size(); i++) {
-    if (symbols.variables.at(i).compare(assignment.lhs().toString()) == 0) {
+    if (symbols.variables.at(i).compare(identifier) == 0) {
       int index = symbols.offsets.at(i);
-      output.push_back("  movl $" + assignment.rhs().toString() + ", -" + std::to_string(index) + "(%ebp)");
+      output.push_back("  movl %eax, -" + std::to_string(index) + "(%ebp)");
       cout << "Successfully changed variable" << endl;
       return;
     }
@@ -203,8 +233,18 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
 void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
   cout << "Entering VisitConditionalExpr" << endl;
   conditional.guard().Visit(this);
+  output.push_back("  je IF_FALSE_0");
   conditional.true_branch().Visit(this);
+  if (conditional.true_branch().decls().size() == 0) {
+    output.push_back("  add $0, %esp");
+  }
+  output.push_back("  jmp IF_END_0");
+  output.push_back("IF_FALSE_0:");
   conditional.false_branch().Visit(this);
+  if (conditional.false_branch().decls().size() == 0) {
+    output.push_back("  add $0, %esp");
+  }
+  output.push_back("IF_END_0:");
   cout << "Exiting VisitConditionalExpr" << endl;
 }
 
