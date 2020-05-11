@@ -32,6 +32,8 @@ class CodeGen final : public AstVisitor {
   // Visitor functions
   void addentry(std::string name, int offset);
   int findentry(std::string name);
+  void allocate();
+  void deallocate();
   void VisitIntegerExpr(const IntegerExpr& exp) override;
   void VisitVariableExpr(const VariableExpr& exp) override;
   void VisitAddExpr(const AddExpr& exp) override;

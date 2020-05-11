@@ -24,6 +24,15 @@ int CodeGen::findentry(std::string name) {
   }
 }
 
+void CodeGen::allocate() {
+  output.push_back("  sub $4, %esp");
+  latestoffset = latestoffset + 4;
+}
+
+void CodeGen::deallocate() {
+  output.push_back("  add $4, %esp");
+  latestoffset = latestoffset - 4;
+}
 
 std::vector<std::string> CodeGen::generateCode(const Program & program) {
   // The main entry point of the code generator. This method should
@@ -44,48 +53,63 @@ std::vector<std::string> CodeGen::generateCode(const Program & program) {
 
 void CodeGen::VisitIntegerExpr(const IntegerExpr& exp) {
   cout << "Entering VisitIntegerExpr" << endl;
-  exp.value();
+  output.push_back("  movl $" + std::to_string(exp.value()) + ", %eax");
   cout << "Exiting VisitIntegerExpr" << endl;
 }
 
+
 void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   cout << "Entering VisitVariableExpr" << endl;
-  exp.name();
-  cout << "Exiting VisitVariableExpr" << endl;
+  string input = exp.name();
+  for (int i = 0; i < symbols.variables.size(); i++) {
+    if (symbols.variables.at(i).compare(input) == 0) {
+      int index = symbols.offsets.at(i);
+      output.push_back("  movl -" + std::to_string(index) + "(%ebp), %eax");
+      output.push_back("  add $" + std::to_string(index) + ", %esp");
+      latestoffset = 0;
+      cout << "outputted variable" << endl;
+      return;
+    }
+  }
+  cout << "Exiting VisitVariableExpr, could not output variable" << endl;
 }
 
 
 
 void CodeGen::VisitAddExpr(const AddExpr& exp) {
   cout << "Entering VisitAddExpr" << endl;
-  output.push_back("  sub $" + std::to_string(latestoffset) + ", %esp");
-  string a = exp.lhs().toString();
-  string b = exp.rhs().toString();
-  output.push_back("Incoming");
-  output.push_back(a);
-  output.push_back(b);
-  output.push_back("  movl $" + a + ", %eax");
+  allocate();
+  exp.lhs().Visit(this);
   output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
-  output.push_back("  movl $" + b + ", %eax");
+  exp.rhs().Visit(this);
   output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  add %edx, %eax");
-  output.push_back("  add $" + std::to_string(latestoffset) + ", %esp");
-  latestoffset = latestoffset - 4;
-
+  deallocate();
   cout << "Exiting VisitAddExpr" << endl;
 }
 
 void CodeGen::VisitSubtractExpr(const SubtractExpr& exp) {
   cout << "Entering VisitSubtractExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  sub %eax, %edx");
+  output.push_back("  movl %edx, %eax");
+  deallocate();
   cout << "Exiting VisitSubtractExpr" << endl;
 }
 
 void CodeGen::VisitMultiplyExpr(const MultiplyExpr& exp) {
   cout << "Entering VisitMultiplyExpr" << endl;
+  allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  imul %edx, %eax");
+  deallocate();
   cout << "Exiting VisitMultiplyExpr" << endl;
 }
 
@@ -141,7 +165,6 @@ void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   int numvar = exp.decls().size();
   if (numvar == 0) {
     output.push_back("  sub $0, %esp");
-    latestoffset = latestoffset + 4;
   }
   for (auto it = exp.decls().begin(); it != exp.decls().end(); ++it) {
       (*it)->Visit(this);
@@ -156,6 +179,9 @@ void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
   cout << "Entering VisitDeclarationExpr" << endl;
   exp.type().Visit(this);
   exp.id().Visit(this);
+  allocate();
+  addentry(exp.id().toString(), latestoffset);
+  output.push_back("  movl $0, -" + std::to_string(latestoffset) + "(%ebp)");
   cout << "Exiting VisitDeclarationExpr" << endl;
 }
 
@@ -163,7 +189,15 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
   assignment.lhs().Visit(this);
   assignment.rhs().Visit(this);
-  cout << "Exiting VisitAssignmentExpr" << endl;
+  for (int i = 0; i < symbols.variables.size(); i++) {
+    if (symbols.variables.at(i).compare(assignment.lhs().toString()) == 0) {
+      int index = symbols.offsets.at(i);
+      output.push_back("  movl $" + assignment.rhs().toString() + ", -" + std::to_string(index) + "(%ebp)");
+      cout << "Successfully changed variable" << endl;
+      return;
+    }
+  }
+  cout << "Exiting VisitAssignmentExp. Could not change variable" << endl;
 }
 
 void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
