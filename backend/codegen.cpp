@@ -82,8 +82,6 @@ void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
     if (symbols.declvariables.at(i).compare(input) == 0) {
       int index = symbols.decloffsets.at(i);
       output.push_back("  movl -" + std::to_string(index) + "(%ebp), %eax");
-      output.push_back("  add $" + std::to_string(index) + ", %esp");
-      latestoffset = 0;
       cout << "outputted variable" << endl;
       return;
     }
@@ -189,14 +187,20 @@ void CodeGen::VisitLogicalOrExpr(const LogicalOrExpr& exp) {
   cout << "Entering VisitLogicalOrExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
+  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
+  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  orl %edx, %eax");
+  deallocate();
   cout << "Exiting VisitLogicalOrExpr" << endl;
 }
 
 void CodeGen::VisitLogicalNotExpr(const LogicalNotExpr& exp) {
   cout << "Entering VisitLogicalNotExpr" << endl;
-  allocate();
   exp.operand().Visit(this);
+  output.push_back("  cmp $0, %eax");
+  output.push_back("  sete %al");
+  output.push_back("  movzbl %al, %eax");
   cout << "Exiting VisitLogicalNotExpr" << endl;
 }
 
@@ -270,7 +274,14 @@ void CodeGen::VisitLoopExpr(const Loop& loop) {
   cout << "Entering VisitLoopExpr" << endl;
   output.push_back("WHILE_START_0:");
   loop.guard().Visit(this);
+  output.push_back("  cmp $0, %eax");
+  output.push_back("  je WHILE_END_0");
   loop.body().Visit(this);
+  if (loop.body().decls().size() == 0) {
+    output.push_back("  add $0, %esp");
+  }
+  output.push_back("  jmp WHILE_START_0");
+  output.push_back("WHILE_END_0:");
   cout << "Exiting VisitLoopExpr" << endl;
 }
 
@@ -322,6 +333,10 @@ void CodeGen::VisitProgramExpr(const Program& program) {
   output.push_back("  movl %esp, %ebp");
   program.statements().Visit(this);
   program.arithmetic_exp().Visit(this);
+  if (latestoffset > 0) {
+    output.push_back("  add $" + std::to_string(latestoffset) + ", %esp");
+  }
+  latestoffset = 0;
   int numvar = program.statements().decls().size();
   if (numvar == 0) {
     output.push_back("  add $0, %esp");
