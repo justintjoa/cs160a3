@@ -12,20 +12,37 @@ namespace cs160::backend {
 
 
 void CodeGen::addentry(std::string name, int offset) {
-  symbols.variables.push_back(name);
-  symbols.offsets.push_back(offset);
+  symbols.tempvariables.push_back(name);
+  symbols.tempoffsets.push_back(offset);
 }
 
 int CodeGen::findentry(std::string name) {
-  for (int i = 0; i < symbols.variables.size(); i++) {
-    if (symbols.variables.at(i).compare(name) == 0) {
-      return symbols.offsets.at(i);
+  for (int i = 0; i < symbols.tempvariables.size(); i++) {
+    if (symbols.tempvariables.at(i).compare(name) == 0) {
+      return symbols.tempoffsets.at(i);
+    }
+  }
+}
+
+void CodeGen::adddeclentry(std::string name, int offset) {
+  symbols.declvariables.push_back(name);
+  symbols.decloffsets.push_back(offset);
+}
+  
+int CodeGen::finddeclentry(std::string name) {
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    if (symbols.declvariables.at(i).compare(name) == 0) {
+      return symbols.decloffsets.at(i);
     }
   }
 }
 
 void CodeGen::allocate() {
   output.push_back("  sub $4, %esp");
+  latestoffset = latestoffset + 4;
+}
+
+void CodeGen::silentalloc() {
   latestoffset = latestoffset + 4;
 }
 
@@ -61,9 +78,9 @@ void CodeGen::VisitIntegerExpr(const IntegerExpr& exp) {
 void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   cout << "Entering VisitVariableExpr" << endl;
   string input = exp.name();
-  for (int i = 0; i < symbols.variables.size(); i++) {
-    if (symbols.variables.at(i).compare(input) == 0) {
-      int index = symbols.offsets.at(i);
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    if (symbols.declvariables.at(i).compare(input) == 0) {
+      int index = symbols.decloffsets.at(i);
       output.push_back("  movl -" + std::to_string(index) + "(%ebp), %eax");
       output.push_back("  add $" + std::to_string(index) + ", %esp");
       latestoffset = 0;
@@ -191,12 +208,14 @@ void CodeGen::VisitIntTypeExpr(const IntType& exp) {
 
 void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   cout << "Entering VisitBlockTypeExpr" << endl;
-  int numvar = exp.decls().size();
-  if (numvar == 0) {
-    output.push_back("  sub $0, %esp");
-  }
+  int numvar = 0;
   for (auto it = exp.decls().begin(); it != exp.decls().end(); ++it) {
       (*it)->Visit(this);
+      numvar++;
+  }
+  output.push_back("  sub $" + std::to_string(numvar*4) + ", %esp");
+  for (int i = 0; i < numvar; i++) {
+    output.push_back("  movl $0, -" + std::to_string(symbols.decloffsets.at(i)) + "(%ebp)");
   }
   for (auto it = exp.stmts().begin(); it != exp.stmts().end(); ++it) {
     (*it)->Visit(this);
@@ -208,9 +227,8 @@ void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
   cout << "Entering VisitDeclarationExpr" << endl;
   exp.type().Visit(this);
   exp.id().Visit(this);
-  allocate();
-  addentry(exp.id().toString(), latestoffset);
-  output.push_back("  movl $0, -" + std::to_string(latestoffset) + "(%ebp)");
+  silentalloc();
+  adddeclentry(exp.id().toString(), latestoffset);
   cout << "Exiting VisitDeclarationExpr" << endl;
 }
 
@@ -218,9 +236,9 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
   string identifier = assignment.lhs().toString();
   assignment.rhs().Visit(this);
-  for (int i = 0; i < symbols.variables.size(); i++) {
-    if (symbols.variables.at(i).compare(identifier) == 0) {
-      int index = symbols.offsets.at(i);
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    if (symbols.declvariables.at(i).compare(identifier) == 0) {
+      int index = symbols.decloffsets.at(i);
       output.push_back("  movl %eax, -" + std::to_string(index) + "(%ebp)");
       cout << "Successfully changed variable" << endl;
       return;
@@ -250,6 +268,7 @@ void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
 
 void CodeGen::VisitLoopExpr(const Loop& loop) {
   cout << "Entering VisitLoopExpr" << endl;
+  output.push_back("WHILE_START_0:");
   loop.guard().Visit(this);
   loop.body().Visit(this);
   cout << "Exiting VisitLoopExpr" << endl;

@@ -14,8 +14,10 @@ using namespace cs160::frontend;
 namespace cs160::backend {
 
 struct Table {
-  std::vector<std::string> variables;
-  std::vector<int> offsets;
+  std::vector<std::string> tempvariables;
+  std::vector<int> tempoffsets;
+  std::vector<std::string> declvariables;
+  std::vector<int> decloffsets;
 };
 
 // This is meant to be a generic error, you can use whatever error message you want
@@ -31,8 +33,11 @@ class CodeGen final : public AstVisitor {
 
   // Visitor functions
   void addentry(std::string name, int offset);
+  void adddeclentry(std::string name, int offset);
+  int finddeclentry(std::string name);
   int findentry(std::string name);
   void allocate();
+  void silentalloc();
   void deallocate();
   void VisitIntegerExpr(const IntegerExpr& exp) override;
   void VisitVariableExpr(const VariableExpr& exp) override;
