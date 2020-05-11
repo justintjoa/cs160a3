@@ -56,7 +56,9 @@ class CodeGen final : public AstVisitor {
   // You can add more public or private members here
 
   private:
+    std::vector<std::string> output;
     Table symbols;
+    int latestoffset = 0;
 };
 
 }

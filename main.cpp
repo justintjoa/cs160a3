@@ -59,10 +59,9 @@ int main(int argc, char* argv[]) {
   }
 
   // Run the code generator
-  std::cout << "Generating code" << std::endl;
+  std::cout << "Generating Code" << std::endl;
   CodeGen codeGen;
   auto insns = codeGen.generateCode(*ast);
-
   // Write out the assembly file
   std::string asmFileName = link ? (outputFileName + ".asm") : outputFileName;
   std::ofstream asmFile{asmFileName};
