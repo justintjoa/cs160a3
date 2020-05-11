@@ -165,7 +165,6 @@ void CodeGen::VisitLogicalAndExpr(const LogicalAndExpr& exp) {
   output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  andl %edx, %eax");
   deallocate();
-  output.push_back("  cmp $0, %eax");
   cout << "Exiting VisitLogicalAndExpr" << endl;
 }
 
@@ -233,6 +232,7 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
 void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
   cout << "Entering VisitConditionalExpr" << endl;
   conditional.guard().Visit(this);
+  output.push_back("  cmp $0, %eax");
   output.push_back("  je IF_FALSE_0");
   conditional.true_branch().Visit(this);
   if (conditional.true_branch().decls().size() == 0) {
