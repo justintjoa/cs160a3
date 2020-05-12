@@ -18,6 +18,8 @@ struct Table {
   std::vector<int> tempoffsets;
   std::vector<std::string> declvariables;
   std::vector<int> decloffsets;
+  std::vector<std::string> args;
+  std::vector<int> argoffsets;
 };
 
 // This is meant to be a generic error, you can use whatever error message you want
@@ -34,11 +36,14 @@ class CodeGen final : public AstVisitor {
   // Visitor functions
   void addentry(std::string name, int offset);
   void adddeclentry(std::string name, int offset);
+  void addarg(std::string name, int offset);
   int finddeclentry(std::string name);
   int findentry(std::string name);
+  int findarg(std::string name);
   void allocate();
   void silentalloc();
   void deallocate();
+  void argallocate();
   void VisitIntegerExpr(const IntegerExpr& exp) override;
   void VisitVariableExpr(const VariableExpr& exp) override;
   void VisitAddExpr(const AddExpr& exp) override;
@@ -66,6 +71,7 @@ class CodeGen final : public AstVisitor {
     std::vector<std::string> output;
     Table symbols;
     int latestoffset = 0;
+    int positiveoffset = 8;
 };
 
 }

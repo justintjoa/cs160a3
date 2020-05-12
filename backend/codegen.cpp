@@ -37,18 +37,36 @@ int CodeGen::finddeclentry(std::string name) {
   }
 }
 
+void CodeGen::addarg(std::string name, int offset) {
+  symbols.args.push_back(name);
+  symbols.argoffsets.push_back(offset);
+}
+
+int CodeGen::findarg(std::string name) {
+  for (int i = 0; i < symbols.args.size(); i++) {
+    if (symbols.args.at(i).compare(name) == 0) {
+      return symbols.argoffsets.at(i);
+    }
+  }
+  return -1;
+}
+
+void CodeGen::argallocate() {
+  positiveoffset = positiveoffset + 4;
+}
+
 void CodeGen::allocate() {
   output.push_back("  sub $4, %esp");
-  latestoffset = latestoffset + 4;
+  latestoffset = latestoffset - 4;
 }
 
 void CodeGen::silentalloc() {
-  latestoffset = latestoffset + 4;
+  latestoffset = latestoffset - 4;
 }
 
 void CodeGen::deallocate() {
   output.push_back("  add $4, %esp");
-  latestoffset = latestoffset - 4;
+  latestoffset = latestoffset + 4;
 }
 
 std::vector<std::string> CodeGen::generateCode(const Program & program) {
@@ -81,7 +99,7 @@ void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   for (int i = 0; i < symbols.declvariables.size(); i++) {
     if (symbols.declvariables.at(i).compare(input) == 0) {
       int index = symbols.decloffsets.at(i);
-      output.push_back("  movl -" + std::to_string(index) + "(%ebp), %eax");
+      output.push_back("  movl " + std::to_string(index) + "(%ebp), %eax");
       cout << "outputted variable" << endl;
       return;
     }
@@ -95,9 +113,9 @@ void CodeGen::VisitAddExpr(const AddExpr& exp) {
   cout << "Entering VisitAddExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  add %edx, %eax");
   deallocate();
   cout << "Exiting VisitAddExpr" << endl;
@@ -107,9 +125,9 @@ void CodeGen::VisitSubtractExpr(const SubtractExpr& exp) {
   cout << "Entering VisitSubtractExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  sub %eax, %edx");
   output.push_back("  movl %edx, %eax");
   deallocate();
@@ -120,9 +138,9 @@ void CodeGen::VisitMultiplyExpr(const MultiplyExpr& exp) {
   cout << "Entering VisitMultiplyExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  imul %edx, %eax");
   deallocate();
   cout << "Exiting VisitMultiplyExpr" << endl;
@@ -132,9 +150,9 @@ void CodeGen::VisitLessThanExpr(const LessThanExpr& exp) {
   cout << "Entering VisitLessThanExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  cmp %eax, %edx");
   output.push_back("  setl %al");
   output.push_back("  movzbl %al, %eax");
@@ -146,9 +164,9 @@ void CodeGen::VisitLessThanEqualToExpr(const LessThanEqualToExpr& exp) {
   cout << "Entering VisitLessThanToEqualExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  cmp %eax, %edx");
   output.push_back("  setle %al");
   output.push_back("  movzbl %al, %eax");
@@ -161,9 +179,9 @@ void CodeGen::VisitEqualToExpr(const EqualToExpr& exp) {
   cout << "Entering VisitEqualToEqualExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  cmp %eax, %edx");
   output.push_back("  sete %al");
   output.push_back("  movzbl %al, %eax");
@@ -175,9 +193,9 @@ void CodeGen::VisitLogicalAndExpr(const LogicalAndExpr& exp) {
   cout << "Entering VisitLogicalAndExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  andl %edx, %eax");
   deallocate();
   cout << "Exiting VisitLogicalAndExpr" << endl;
@@ -187,9 +205,9 @@ void CodeGen::VisitLogicalOrExpr(const LogicalOrExpr& exp) {
   cout << "Entering VisitLogicalOrExpr" << endl;
   allocate();
   exp.lhs().Visit(this);
-  output.push_back("  movl %eax, -" + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("  movl %eax, " + std::to_string(latestoffset) + "(%ebp)");
   exp.rhs().Visit(this);
-  output.push_back("  movl -" + std::to_string(latestoffset) + "(%ebp), %edx");
+  output.push_back("  movl " + std::to_string(latestoffset) + "(%ebp), %edx");
   output.push_back("  orl %edx, %eax");
   deallocate();
   cout << "Exiting VisitLogicalOrExpr" << endl;
@@ -219,7 +237,7 @@ void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   }
   output.push_back("  sub $" + std::to_string(numvar*4) + ", %esp");
   for (int i = 0; i < numvar; i++) {
-    output.push_back("  movl $0, -" + std::to_string(symbols.decloffsets.at(i)) + "(%ebp)");
+    output.push_back("  movl $0, " + std::to_string(symbols.decloffsets.at(i)) + "(%ebp)");
   }
   for (auto it = exp.stmts().begin(); it != exp.stmts().end(); ++it) {
     (*it)->Visit(this);
@@ -243,7 +261,7 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   for (int i = 0; i < symbols.declvariables.size(); i++) {
     if (symbols.declvariables.at(i).compare(identifier) == 0) {
       int index = symbols.decloffsets.at(i);
-      output.push_back("  movl %eax, -" + std::to_string(index) + "(%ebp)");
+      output.push_back("  movl %eax, " + std::to_string(index) + "(%ebp)");
       cout << "Successfully changed variable" << endl;
       return;
     }
@@ -290,11 +308,11 @@ void CodeGen::VisitLoopExpr(const Loop& loop) {
 
 void CodeGen::VisitFunctionCallExpr(const FunctionCall& call) {
   cout << "Entering VisitFunctionCallExpr" << endl;
-  output.push_back("  push %eax");
-  output.push_back("  call " + call.callee_name());
   for (auto it = call.arguments().begin(); it != call.arguments().end(); ++it) {
       (*it)->Visit(this);
   }
+  output.push_back("  push %eax");
+  output.push_back("  call " + call.callee_name());
   cout << "Exiting VisitFunctionCallExpr" << endl;
 }
 
@@ -333,8 +351,8 @@ void CodeGen::VisitProgramExpr(const Program& program) {
   output.push_back("  movl %esp, %ebp");
   program.statements().Visit(this);
   program.arithmetic_exp().Visit(this);
-  if (latestoffset > 0) {
-    output.push_back("  add $" + std::to_string(latestoffset) + ", %esp");
+  if (latestoffset < 0) {
+    output.push_back("  add $" + std::to_string(latestoffset*-1) + ", %esp");
   }
   latestoffset = 0;
   int numvar = program.statements().decls().size();
