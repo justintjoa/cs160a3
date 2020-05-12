@@ -75,7 +75,7 @@ class CodeGen final : public AstVisitor {
     Table symbols;
     int latestoffset = 0;
     int positiveoffset = 4;
-    int whilecount = 0;
+    int scopecount = 0;
 };
 
 }

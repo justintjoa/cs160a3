@@ -277,35 +277,37 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
 
 void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
   cout << "Entering VisitConditionalExpr" << endl;
+  int current = scopecount;
+  scopecount++;
   conditional.guard().Visit(this);
   output.push_back("  cmp $0, %eax");
-  output.push_back("  je IF_FALSE_0");
+  output.push_back("  je IF_FALSE_" + std::to_string(current));
   conditional.true_branch().Visit(this);
   if (conditional.true_branch().decls().size() == 0) {
     output.push_back("  add $0, %esp");
   }
   else {
     int space = conditional.true_branch().decls().size();
-    output.push_back("  add $" + std::to_string(space*4) + ", %esp");
+    customdealloc(space);
   }
-  output.push_back("  jmp IF_END_0");
-  output.push_back("IF_FALSE_0:");
+  output.push_back("  jmp IF_END_" + std::to_string(current));
+  output.push_back("IF_FALSE_" + std::to_string(current) + ":");
   conditional.false_branch().Visit(this);
   if (conditional.false_branch().decls().size() == 0) {
     output.push_back("  add $0, %esp");
   }
   else {
     int space = conditional.false_branch().decls().size();
-    output.push_back("  add $" + std::to_string(space*4) + ", %esp");
+    customdealloc(space);
   }
-  output.push_back("IF_END_0:");
+  output.push_back("IF_END_" + std::to_string(current) + ":");
   cout << "Exiting VisitConditionalExpr" << endl;
 }
 
 void CodeGen::VisitLoopExpr(const Loop& loop) {
   cout << "Entering VisitLoopExpr" << endl;
-  int current = whilecount;
-  whilecount++;
+  int current = scopecount;
+  scopecount++;
   output.push_back("WHILE_START_" + std::to_string(current) + ":");
   loop.guard().Visit(this);
   output.push_back("  cmp $0, %eax");
@@ -357,7 +359,7 @@ void CodeGen::reset() {
   }
   latestoffset = 0;
   positiveoffset = 4;
-  whilecount = 0;
+  scopecount = 0;
 }
 
 
@@ -376,11 +378,13 @@ void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   def.type().Visit(this);
   def.function_body().Visit(this);
   def.retval().Visit(this);
-  if (latestoffset < -4) {
-    output.push_back("  add $" + std::to_string(latestoffset*-1 - 4) + ", %esp");
-  }
   if (def.function_body().stmts().size() == 0) {
     output.push_back("  add $0, %esp");
+  }
+  else {
+    int remainder = def.function_body().stmts().size();
+    output.push_back("who are you?");
+    customdealloc(remainder);
   }
   reset();
   output.push_back("  movl %ebp, %esp");
