@@ -304,31 +304,40 @@ void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
 
 void CodeGen::VisitLoopExpr(const Loop& loop) {
   cout << "Entering VisitLoopExpr" << endl;
-  output.push_back("WHILE_START_0:");
+  int current = whilecount;
+  whilecount++;
+  output.push_back("WHILE_START_" + std::to_string(current) + ":");
   loop.guard().Visit(this);
   output.push_back("  cmp $0, %eax");
-  output.push_back("  je WHILE_END_0");
+  output.push_back("  je WHILE_END_" + std::to_string(current));
   loop.body().Visit(this);
   if (loop.body().decls().size() == 0) {
     output.push_back("  add $0, %esp");
   }
-  output.push_back("  jmp WHILE_START_0");
-  output.push_back("WHILE_END_0:");
+  else {
+    int alpha = loop.body().decls().size();
+    customdealloc(alpha);
+  }
+  output.push_back("  jmp WHILE_START_" + std::to_string(current));
+  output.push_back("WHILE_END_" + std::to_string(current) + ":");
   cout << "Exiting VisitLoopExpr" << endl;
 }
 
-
+void CodeGen::customdealloc(int removal) {
+  output.push_back("  add $" + std::to_string(removal*4) + ", %esp");
+  latestoffset = latestoffset + 4*removal;
+}
 
 
 void CodeGen::VisitFunctionCallExpr(const FunctionCall& call) {
   cout << "Entering VisitFunctionCallExpr" << endl;
-  for (auto it = call.arguments().begin(); it != call.arguments().end(); ++it) {
+  for (auto it = call.arguments().rbegin(); it != call.arguments().rend(); ++it) {
       (*it)->Visit(this);
+      output.push_back("  push %eax");
+      silentalloc();
   }
-  silentalloc();
-  output.push_back("  push %eax");
   output.push_back("  call " + call.callee_name());
-  deallocate();
+  customdealloc(call.arguments().size());
   cout << "Exiting VisitFunctionCallExpr" << endl;
 }
 
@@ -348,6 +357,7 @@ void CodeGen::reset() {
   }
   latestoffset = 0;
   positiveoffset = 4;
+  whilecount = 0;
 }
 
 
@@ -366,6 +376,12 @@ void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   def.type().Visit(this);
   def.function_body().Visit(this);
   def.retval().Visit(this);
+  if (latestoffset < -4) {
+    output.push_back("  add $" + std::to_string(latestoffset*-1 - 4) + ", %esp");
+  }
+  if (def.function_body().stmts().size() == 0) {
+    output.push_back("  add $0, %esp");
+  }
   reset();
   output.push_back("  movl %ebp, %esp");
   output.push_back("  pop %ebp");

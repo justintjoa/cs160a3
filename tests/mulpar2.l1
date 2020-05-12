@@ -1,0 +1,9 @@
+def sub(int x, int y): int {
+    return x - y;
+}
+
+int r;
+
+r := sub(42, 2);
+
+output r;

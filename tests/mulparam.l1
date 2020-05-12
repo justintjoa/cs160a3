@@ -1,0 +1,12 @@
+def add(int x, int y): int {
+    return x + y;
+}
+
+int result;
+int y;
+
+result := add(3 - 2, 4 * 4);
+
+result := result + 2;
+
+output result + y;

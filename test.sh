@@ -94,3 +94,4 @@ if diff ./tests/var.l1.exe.asm ./tests/var.l1.expected-asm; then
 else
     echo "failed var"
 fi
+

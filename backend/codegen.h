@@ -40,6 +40,7 @@ class CodeGen final : public AstVisitor {
   int finddeclentry(std::string name);
   int findentry(std::string name);
   int findarg(std::string name);
+  void customdealloc(int removal);
   void allocate();
   void reset();
   void silentalloc();
@@ -74,6 +75,7 @@ class CodeGen final : public AstVisitor {
     Table symbols;
     int latestoffset = 0;
     int positiveoffset = 4;
+    int whilecount = 0;
 };
 
 }
