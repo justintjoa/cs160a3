@@ -310,9 +310,10 @@ void CodeGen::VisitFunctionCallExpr(const FunctionCall& call) {
   for (auto it = call.arguments().begin(); it != call.arguments().end(); ++it) {
       (*it)->Visit(this);
   }
+  silentalloc();
   output.push_back("  push %eax");
   output.push_back("  call " + call.callee_name());
-  output.push_back("  add $4, %esp");
+  deallocate();
   cout << "Exiting VisitFunctionCallExpr" << endl;
 }
 
