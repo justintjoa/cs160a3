@@ -111,6 +111,19 @@ void CodeGen::VisitIntegerExpr(const IntegerExpr& exp) {
 void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   cout << "Entering VisitVariableExpr" << endl;
   string input = exp.name();
+  output.push_back("yolo");
+  for (int i = 0; i < symbols.args.size(); i++) {
+    output.push_back(symbols.args.at(i));
+    output.push_back(std::to_string(symbols.argoffsets.at(i)));
+  }
+  output.push_back("diff");
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    output.push_back(symbols.declvariables.at(i));
+    output.push_back(std::to_string(symbols.decloffsets.at(i)));
+  }
+  if (exp.name().compare("x1") == 0) {
+    output.push_back("lonely");
+  }
   for (int i = 0; i < symbols.args.size(); i++) {
     if (symbols.args.at(i).compare(input) == 0) {
       int index = symbols.argoffsets.at(i);
@@ -269,6 +282,7 @@ void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
   silentalloc();
   adddeclentry(exp.id().toString(), latestoffset);
   output.push_back("  movl $0, " + std::to_string(latestoffset) + "(%ebp)");
+  output.push_back("got the declare to work");
   cout << "Exiting VisitDeclarationExpr" << endl;
 }
 
