@@ -32,6 +32,12 @@ void CodeGen::resettemp() {
 }
 
 void CodeGen::adddeclentry(std::string name, int offset) {
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    if (symbols.declvariables.at(i).compare(name) == 0) {
+      symbols.decloffsets.at(i) = offset;
+      return;
+    }
+  }
   symbols.declvariables.push_back(name);
   symbols.decloffsets.push_back(offset);
 }
@@ -45,6 +51,12 @@ int CodeGen::finddeclentry(std::string name) {
 }
 
 void CodeGen::addarg(std::string name, int offset) {
+  for (int i = 0; i < symbols.args.size(); i++) {
+    if (symbols.args.at(i).compare(name) == 0) {
+      symbols.argoffsets.at(i) = offset;
+      return;
+    }
+  }
   symbols.args.push_back(name);
   symbols.argoffsets.push_back(offset);
 }
@@ -264,6 +276,13 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
   string identifier = assignment.lhs().toString();
   assignment.rhs().Visit(this);
+  /*
+  output.push_back("culprit");
+  for (int i = 0; i < symbols.declvariables.size(); i++) {
+    output.push_back(symbols.declvariables.at(i));
+    output.push_back(std::to_string(symbols.decloffsets.at(i)));
+  }
+  */
   for (int i = 0; i < symbols.declvariables.size(); i++) {
     if (symbols.declvariables.at(i).compare(identifier) == 0) {
       int index = symbols.decloffsets.at(i);
