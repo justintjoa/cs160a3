@@ -359,7 +359,6 @@ void CodeGen::reset() {
   }
   latestoffset = 0;
   positiveoffset = 4;
-  scopecount = 0;
 }
 
 
@@ -378,13 +377,11 @@ void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   def.type().Visit(this);
   def.function_body().Visit(this);
   def.retval().Visit(this);
-  if (def.function_body().stmts().size() == 0) {
+  if (latestoffset >= 0) {
     output.push_back("  add $0, %esp");
   }
   else {
-    int remainder = def.function_body().stmts().size();
-    output.push_back("who are you?");
-    customdealloc(remainder);
+    output.push_back("  add $" + std::to_string(latestoffset*-1) + ", %esp");
   }
   reset();
   output.push_back("  movl %ebp, %esp");
