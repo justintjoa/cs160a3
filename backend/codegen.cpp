@@ -24,6 +24,13 @@ int CodeGen::findentry(std::string name) {
   }
 }
 
+void CodeGen::resettemp() {
+  if (symbols.tempvariables.size() > 0) {
+    symbols.tempvariables.clear();
+    symbols.tempoffsets.clear();
+  }
+}
+
 void CodeGen::adddeclentry(std::string name, int offset) {
   symbols.declvariables.push_back(name);
   symbols.decloffsets.push_back(offset);
@@ -277,11 +284,19 @@ void CodeGen::VisitConditionalExpr(const Conditional& conditional) {
   if (conditional.true_branch().decls().size() == 0) {
     output.push_back("  add $0, %esp");
   }
+  else {
+    int space = conditional.true_branch().decls().size();
+    output.push_back("  add $" + std::to_string(space*4) + ", %esp");
+  }
   output.push_back("  jmp IF_END_0");
   output.push_back("IF_FALSE_0:");
   conditional.false_branch().Visit(this);
   if (conditional.false_branch().decls().size() == 0) {
     output.push_back("  add $0, %esp");
+  }
+  else {
+    int space = conditional.false_branch().decls().size();
+    output.push_back("  add $" + std::to_string(space*4) + ", %esp");
   }
   output.push_back("IF_END_0:");
   cout << "Exiting VisitConditionalExpr" << endl;
@@ -318,6 +333,24 @@ void CodeGen::VisitFunctionCallExpr(const FunctionCall& call) {
 }
 
 
+void CodeGen::reset() {
+  if (symbols.tempvariables.size() > 0) {
+    symbols.tempvariables.clear();
+    symbols.tempoffsets.clear();
+  }
+  if (symbols.declvariables.size() > 0) {
+    symbols.declvariables.clear();
+    symbols.decloffsets.clear();
+  }
+  if (symbols.args.size() > 0) {
+    symbols.args.clear();
+    symbols.argoffsets.clear();
+  }
+  latestoffset = 0;
+  positiveoffset = 4;
+}
+
+
 
 void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   cout << "Entering VisitFunctionDefExpr" << endl;
@@ -333,6 +366,7 @@ void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   def.type().Visit(this);
   def.function_body().Visit(this);
   def.retval().Visit(this);
+  reset();
   output.push_back("  movl %ebp, %esp");
   output.push_back("  pop %ebp");
   output.push_back("  ret");

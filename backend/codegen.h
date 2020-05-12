@@ -41,9 +41,11 @@ class CodeGen final : public AstVisitor {
   int findentry(std::string name);
   int findarg(std::string name);
   void allocate();
+  void reset();
   void silentalloc();
   void deallocate();
   void argallocate();
+  void resettemp();
   void VisitIntegerExpr(const IntegerExpr& exp) override;
   void VisitVariableExpr(const VariableExpr& exp) override;
   void VisitAddExpr(const AddExpr& exp) override;
