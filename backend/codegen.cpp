@@ -268,7 +268,7 @@ void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
   cout << "Entering VisitDeclarationExpr" << endl;
   silentalloc();
   adddeclentry(exp.id().toString(), latestoffset);
-  output.push_back("setting variable up " + exp.id().toString() + " " + std::to_string(latestoffset));
+  //output.push_back("setting variable up " + exp.id().toString() + " " + std::to_string(latestoffset));
   output.push_back("  movl $0, " + std::to_string(latestoffset) + "(%ebp)");
   cout << "Exiting VisitDeclarationExpr" << endl;
 }
@@ -277,7 +277,7 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
   string identifier = assignment.lhs().toString();
   assignment.rhs().Visit(this);
-  output.push_back("accessing variable " + identifier);
+  //output.push_back("accessing variable " + identifier);
   for (int i = 0; i < symbols.args.size(); i++) {
     if (symbols.args.at(i).compare(identifier) == 0) {
       int index = symbols.argoffsets.at(i);
