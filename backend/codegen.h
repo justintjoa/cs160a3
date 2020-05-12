@@ -71,7 +71,7 @@ class CodeGen final : public AstVisitor {
     std::vector<std::string> output;
     Table symbols;
     int latestoffset = 0;
-    int positiveoffset = 8;
+    int positiveoffset = 4;
 };
 
 }

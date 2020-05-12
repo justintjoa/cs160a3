@@ -77,10 +77,6 @@ std::vector<std::string> CodeGen::generateCode(const Program & program) {
   // Right now it returns a dummy assembly program that returns 0 as
   // the output
   cout << "Making Code" << endl;
-  if (program.function_defs().size() == 0) {
-    output.push_back("  .globl Entry");
-    output.push_back("  .type Entry, @function");
-  }
   VisitProgramExpr(program);
   cout << "leaving making code" << endl;
   return output;
@@ -96,6 +92,14 @@ void CodeGen::VisitIntegerExpr(const IntegerExpr& exp) {
 void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   cout << "Entering VisitVariableExpr" << endl;
   string input = exp.name();
+  for (int i = 0; i < symbols.args.size(); i++) {
+    if (symbols.args.at(i).compare(input) == 0) {
+      int index = symbols.argoffsets.at(i);
+      output.push_back("  movl " + std::to_string(index) + "(%ebp), %eax");
+      cout << "outputted variable" << endl;
+      return;
+    }
+  }
   for (int i = 0; i < symbols.declvariables.size(); i++) {
     if (symbols.declvariables.at(i).compare(input) == 0) {
       int index = symbols.decloffsets.at(i);
@@ -230,14 +234,10 @@ void CodeGen::VisitIntTypeExpr(const IntType& exp) {
 
 void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   cout << "Entering VisitBlockTypeExpr" << endl;
-  int numvar = 0;
+  int relevdecl = exp.decls().size();
+  output.push_back("  sub $" + std::to_string(relevdecl*4) + ", %esp");
   for (auto it = exp.decls().begin(); it != exp.decls().end(); ++it) {
       (*it)->Visit(this);
-      numvar++;
-  }
-  output.push_back("  sub $" + std::to_string(numvar*4) + ", %esp");
-  for (int i = 0; i < numvar; i++) {
-    output.push_back("  movl $0, " + std::to_string(symbols.decloffsets.at(i)) + "(%ebp)");
   }
   for (auto it = exp.stmts().begin(); it != exp.stmts().end(); ++it) {
     (*it)->Visit(this);
@@ -247,10 +247,9 @@ void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
 
 void CodeGen::VisitDeclarationExpr(const Declaration& exp) {
   cout << "Entering VisitDeclarationExpr" << endl;
-  exp.type().Visit(this);
-  exp.id().Visit(this);
   silentalloc();
   adddeclentry(exp.id().toString(), latestoffset);
+  output.push_back("  movl $0, " + std::to_string(latestoffset) + "(%ebp)");
   cout << "Exiting VisitDeclarationExpr" << endl;
 }
 
@@ -313,6 +312,7 @@ void CodeGen::VisitFunctionCallExpr(const FunctionCall& call) {
   }
   output.push_back("  push %eax");
   output.push_back("  call " + call.callee_name());
+  output.push_back("  add $4, %esp");
   cout << "Exiting VisitFunctionCallExpr" << endl;
 }
 
@@ -326,10 +326,15 @@ void CodeGen::VisitFunctionDefExpr(const FunctionDef& def) {
   for (auto it = def.parameters().begin(); it != def.parameters().end(); ++it) {
       (*it).first->Visit(this);
       (*it).second->Visit(this);
+      argallocate();
+      addarg((*it).second->name(),positiveoffset);
   }
   def.type().Visit(this);
   def.function_body().Visit(this);
   def.retval().Visit(this);
+  output.push_back("  movl %ebp, %esp");
+  output.push_back("  pop %ebp");
+  output.push_back("  ret");
   cout << "Exiting VisitFunctionDefExpr" << endl;
 }
 
@@ -346,6 +351,8 @@ void CodeGen::VisitProgramExpr(const Program& program) {
   for (auto it = program.function_defs().begin(); it != program.function_defs().end(); ++it) {
       (*it)->Visit(this);
     }
+    output.push_back("  .globl Entry");
+    output.push_back("  .type Entry, @function");
   output.push_back("Entry:");
   output.push_back("  push %ebp");
   output.push_back("  movl %esp, %ebp");
