@@ -41,9 +41,11 @@ class CodeGen final : public AstVisitor {
   int findentry(std::string name);
   int findarg(std::string name);
   void customdealloc(int removal);
+  void purge();
   void allocate();
   void reset();
   void silentalloc();
+  void silentdealloc();
   void deallocate();
   void argallocate();
   void resettemp();

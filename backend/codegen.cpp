@@ -11,18 +11,7 @@ namespace cs160::backend {
 // Code generator methods
 
 
-void CodeGen::addentry(std::string name, int offset) {
-  symbols.tempvariables.push_back(name);
-  symbols.tempoffsets.push_back(offset);
-}
 
-int CodeGen::findentry(std::string name) {
-  for (int i = 0; i < symbols.tempvariables.size(); i++) {
-    if (symbols.tempvariables.at(i).compare(name) == 0) {
-      return symbols.tempoffsets.at(i);
-    }
-  }
-}
 
 void CodeGen::resettemp() {
   if (symbols.tempvariables.size() > 0) {
@@ -31,39 +20,41 @@ void CodeGen::resettemp() {
   }
 }
 
-void CodeGen::adddeclentry(std::string name, int offset) {
+void CodeGen::purge() {
+  std::vector<std::string> newdecls;
+  std::vector<int> newoff;
   for (int i = 0; i < symbols.declvariables.size(); i++) {
-    if (symbols.declvariables.at(i).compare(name) == 0) {
-      symbols.decloffsets.at(i) = offset;
-      return;
-    }
+    if (symbols.decloffsets.at(i) >= latestoffset) {
+      newdecls.push_back(symbols.declvariables.at(i));
+      newoff.push_back(symbols.decloffsets.at(i));
+    } 
   }
+  symbols.declvariables = newdecls;
+  symbols.decloffsets = newoff;
+}
+
+void CodeGen::adddeclentry(std::string name, int offset) {
   symbols.declvariables.push_back(name);
   symbols.decloffsets.push_back(offset);
 }
   
 int CodeGen::finddeclentry(std::string name) {
-  for (int i = 0; i < symbols.declvariables.size(); i++) {
-    if (symbols.declvariables.at(i).compare(name) == 0) {
+  for (int i = symbols.declvariables.size()-1; i >= 0; i--) {
+    if ((symbols.declvariables.at(i).compare(name) == 0) && (symbols.decloffsets.at(i) >= latestoffset)) {
       return symbols.decloffsets.at(i);
     }
   }
+  return -1;
 }
 
 void CodeGen::addarg(std::string name, int offset) {
-  for (int i = 0; i < symbols.args.size(); i++) {
-    if (symbols.args.at(i).compare(name) == 0) {
-      symbols.argoffsets.at(i) = offset;
-      return;
-    }
-  }
   symbols.args.push_back(name);
   symbols.argoffsets.push_back(offset);
 }
 
 int CodeGen::findarg(std::string name) {
-  for (int i = 0; i < symbols.args.size(); i++) {
-    if (symbols.args.at(i).compare(name) == 0) {
+  for (int i = symbols.args.size()-1; i >= 0; i--) {
+    if ((symbols.args.at(i).compare(name) == 0) && (symbols.argoffsets.at(i) >= latestoffset)) {
       return symbols.argoffsets.at(i);
     }
   }
@@ -111,21 +102,18 @@ void CodeGen::VisitIntegerExpr(const IntegerExpr& exp) {
 void CodeGen::VisitVariableExpr(const VariableExpr& exp) {
   cout << "Entering VisitVariableExpr" << endl;
   string input = exp.name();
-  for (int i = 0; i < symbols.args.size(); i++) {
-    if (symbols.args.at(i).compare(input) == 0) {
-      int index = symbols.argoffsets.at(i);
-      output.push_back("  movl " + std::to_string(index) + "(%ebp), %eax");
-      cout << "outputted variable" << endl;
-      return;
-    }
+  //output.push_back("accessing variable " + input);
+  int check = findarg(input);
+  if (check != -1) {
+    output.push_back("  movl " + std::to_string(check) + "(%ebp), %eax");
+    cout << "outputted variable" << endl;
+    return;
   }
-  for (int i = 0; i < symbols.declvariables.size(); i++) {
-    if (symbols.declvariables.at(i).compare(input) == 0) {
-      int index = symbols.decloffsets.at(i);
-      output.push_back("  movl " + std::to_string(index) + "(%ebp), %eax");
-      cout << "outputted variable" << endl;
-      return;
-    }
+  check = finddeclentry(input);
+  if (check != -1) {
+    output.push_back("  movl " + std::to_string(check) + "(%ebp), %eax");
+    cout << "outputted variable" << endl;
+    return;
   }
   cout << "Exiting VisitVariableExpr, could not output variable" << endl;
 }
@@ -251,6 +239,10 @@ void CodeGen::VisitIntTypeExpr(const IntType& exp) {
   cout << "Exiting VisitIntTypeExpr" << endl;
 }
 
+void CodeGen::silentdealloc() {
+  latestoffset = latestoffset + 4;
+}
+
 void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   cout << "Entering VisitBlockTypeExpr" << endl;
   int relevdecl = exp.decls().size();
@@ -261,6 +253,7 @@ void CodeGen::VisitBlockExpr(const BlockExpr& exp) {
   for (auto it = exp.stmts().begin(); it != exp.stmts().end(); ++it) {
     (*it)->Visit(this);
   }
+  purge();
   cout << "Exiting VisitBlockeExpr" << endl;
 }
 
@@ -277,22 +270,17 @@ void CodeGen::VisitAssignmentExpr(const Assignment& assignment) {
   cout << "Entering VisitAssignmentExpr" << endl;
   string identifier = assignment.lhs().toString();
   assignment.rhs().Visit(this);
-  //output.push_back("accessing variable " + identifier);
-  for (int i = 0; i < symbols.args.size(); i++) {
-    if (symbols.args.at(i).compare(identifier) == 0) {
-      int index = symbols.argoffsets.at(i);
-      output.push_back("  movl %eax, " + std::to_string(index) + "(%ebp)");
-      cout << "Successfully changed variable" << endl;
-      return;
-    }
+  int check = findarg(identifier);
+  if (check != -1) {
+    output.push_back("  movl %eax, " + std::to_string(check) + "(%ebp)");
+    cout << "outputted variable" << endl;
+    return;
   }
-  for (int i = 0; i < symbols.declvariables.size(); i++) {
-    if (symbols.declvariables.at(i).compare(identifier) == 0) {
-      int index = symbols.decloffsets.at(i);
-      output.push_back("  movl %eax, " + std::to_string(index) + "(%ebp)");
-      cout << "Successfully changed variable" << endl;
-      return;
-    }
+  check = finddeclentry(identifier);
+  if (check != -1) {
+    output.push_back("  movl %eax, " + std::to_string(check) + "(%ebp)");
+    cout << "outputted variable" << endl;
+    return;
   }
   cout << "Exiting VisitAssignmentExp. Could not change variable" << endl;
 }
